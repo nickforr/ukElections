@@ -21,19 +21,6 @@ leaflet(data = constituencyShapefile) %>%
 
 
 
-download.file("http://www.electoralcommission.org.uk/__data/assets/excel_doc/0011/189623/2015-UK-general-election-data-results-WEB.xlsx", "electionResults2015.xlsx")
-
-candidates <- read_excel("electionResults2015.xlsx", sheet = 2)
-constituency <- read_excel("electionResults2015.xlsx", sheet = 3)
-results <- read_excel("electionResults2015.xlsx", sheet = 4)
-partyNames <- read_excel("electionResults2015.xlsx", sheet = 5)
-
-allData <- 
-  left_join(
-    constituency, 
-    dplyr::select(results, -one_of(names(results)[1:4], names(results)[6:9]))
-  )
-
 
 
 
