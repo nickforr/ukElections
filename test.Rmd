@@ -58,6 +58,9 @@ if (!file.exists("votingData.RDS")) {
       shortfallVotesPpnElectorate = shortfallVotes / Electorate,
       shortfallVotesPpnVoted = shortfallVotes / validVotes
     ) %>%
+    ungroup()
+  votingData <- 
+    votingData %>%
     left_join(
       votingData %>%
         filter(resultRank == 2) %>%
