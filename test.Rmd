@@ -1,19 +1,122 @@
 ---
-title: "Marginal seats from 2015"
+title: "A guide to tactical voting for 2017 election"
+runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: rows
     vertical_layout: fill
-runtime: shiny
+    social: menu
+    source_code: https://github.com/nickforr/ukEelctions
+    theme: simplex
+
 ---
 
 ```{r global, include=FALSE}
 library(flexdashboard)
 library(shiny)
+library(raster) #Need to put raster before tidyverse to avoid masking select
+library(tidyverse)
+library(readxl)
+library(scales)
+library(hrbrthemes)
+library(viridis)
+library(leaflet)
 
+if (!file.exists("electionResults2015.xlsx")) {
+  download.file("http://www.electoralcommission.org.uk/__data/assets/excel_doc/0011/189623/2015-UK-general-election-data-results-WEB.xlsx", "electionResults2015.xlsx")
+}
+if (!file.exists("referendumResults2016.csv")) {
+  download.file("http://www.electoralcommission.org.uk/__data/assets/file/0014/212135/EU-referendum-result-data.csv",  "referendumResults2016.csv")
+}
+if (!file.exists("votingData.RDS")) {
+  candidates <- 
+    readxl::read_excel("electionResults2015.xlsx", sheet = 2)
+  constituency <- 
+    readxl::read_excel("electionResults2015.xlsx", sheet = 3)
+  votingData <- 
+    left_join(
+      candidates %>%
+        select(PANO, Surname, `Constituency ID`, 
+          `Party abbreviation`, Votes),
+      constituency %>%
+        select(PANO, `Constituency ID`, `Constituency Name`, 
+          Electorate, `Valid Votes`, Region),
+      by = c("PANO", "Constituency ID")
+    ) %>% 
+    filter(PANO != is.na(PANO)) %>%
+    rename(
+      constituencyId = `Constituency ID`,
+      constituencyName = `Constituency Name`,
+      validVotes = `Valid Votes`,
+      partyAbbreviation = `Party abbreviation`
+    ) %>%
+    group_by(PANO) %>%
+    mutate(
+      resultRank = row_number(desc(Votes)),
+      winningVotes = max(Votes),
+      shortfallVotes = winningVotes - Votes,
+      shortfallVotesPpnElectorate = shortfallVotes / Electorate,
+      shortfallVotesPpnVoted = shortfallVotes / validVotes
+    ) %>%
+    left_join(
+      votingData %>%
+        filter(resultRank == 2) %>%
+        mutate(shortfallRank = row_number(shortfallVotesPpnVoted)) %>%
+        group_by(Region) %>%
+        mutate(shortfallByRegionRank = row_number(shortfallVotesPpnVoted)) %>%
+        ungroup() %>%
+        select(PANO, shortfallRank, shortfallByRegionRank)
+    )
+  rm(candidates, constituency)
+  saveRDS(votingData, "votingData.RDS")
+} else {
+  votingData <- readRDS("votingData.RDS")
+}
+
+regionList <- unique(votingData$Region)
 ```
 
-Column {data-width=650}
+Sidebar {.sidebar}
+=======================================================================
+
+<br>
+```{r}
+
+#Select input for region
+selectInput(
+  inputId = "regionChoice", label = "Select a region:", 
+  choices = regionList, selected = "Scotland"
+)
+
+#Filter data based on region data
+regionVotingData <- reactive({
+  votingData %>%
+  filter(Region == input$regionChoice)
+})
+
+#render ui to select constituecy
+output$constituencySelect <- renderUI({
+  regionData <- regionVotingData()
+  constituencies <- unique(regionData$constituencyName)
+  selectInput(
+    inputId = "constituencyChoice", label = "Select constituency:",
+    choices = constituencies
+  )
+})
+  
+uiOutput("constituencySelect")
+```
+
+Whether you have views on Scottish independence or on Brexit, the upcoming election suggests a greater relevance for tactical voting.  
+
+Use the [Explore constituency](#section-explore-constituency) tab to see more detail about your chosen constituency.  
+
+The [Marginal constituencies in region](#section-marginal-constituencies-in-region) tab highlights the top ten marginal contituencies in the selected region.
+
+Explore constituency
+=======================================================================
+
+Row
 -----------------------------------------------------------------------
 
 ### Chart A
@@ -22,7 +125,7 @@ Column {data-width=650}
 
 ```
 
-Column {data-width=350}
+Row
 -----------------------------------------------------------------------
 
 ### Chart B
@@ -37,3 +140,62 @@ Column {data-width=350}
 
 ```
 
+Marginal constituencies in region
+=======================================================================
+
+### Top ten marginal constituencies
+
+Credits
+=======================================================================
+
+### Background  
+
+I put together this app partly because I like playing around with (R)[https://cran.r-project.org] and (Shiny)[http://shiny.rstudio.com] and also because the upcoming 2017 UK election is likely to be extremely disappointing so I wanted to do something that might potentially be of some small use.  
+
+As someone who sees themselves as Scottish, British and European, I have little time for the parochialism and, in may cases, racism on show in both the Scottish Independence and 'Brexit' debates; and even less time for the rank hypocrisy shown by many politicians.
+
+When it comes to Scotland, it's my view that independence would do far greater harm to the poorest in our society than any austerity measures that the Conservative party may enact; there are degrees of harm and, as unfortunate as it is, voting to cut off your foot is better than voting to cut off your leg.
+
+With regard to Europe, I think the blame for how many people feel towards the EU 
+
+If pushed to put a label on it, I would probably characterise my politics as centre-left; I'm typically torn between the Labour party and the Liberal Democrats. And whilst I may disagree with many of their policies, I would note that there are many Conservative MPs whom I respect (the attempt to paint the Conservative party as 'evil monsters' by many in Scotland does nobody any good).
+
+More generally, I would prefer to see far less tribalism and a much greater willingness to seek compromise and collaboration across party lines (for example, as much as I disagree with David Davis on 'Brexit', I respected his stance re civil liberties - more so than could be said for the likes of Andy Burnham).
+
+
+(I would note that being against cutting off your leg does not mean you are in favour of cutting of your foot)
+
+
+
+e
+
+### Citations
+
+Flexdashboard layout inspiration: <https://github.com/walkerke/neighborhood_diversity>
+
+```{r, results = "asis"}
+citationFn <- function(pkgName = "base") {
+  cat(attr(unclass(citation(pkgName))[[1]], "textVersion"), "<br>", "<br>")
+}
+citationFn() 
+citationFn("flexdashboard")
+citationFn("shiny")
+citationFn("tidyverse")
+citationFn("readxl")
+citationFn("scales")
+citationFn("hrbrthemes")
+citationFn("viridis")
+citationFn("raster")
+citationFn("leaflet")
+```
+
+
+<style>
+
+.section.sidebar {
+  background-color: white; 
+}
+
+ #muchSmaller { font-size: small; }
+
+</style>
