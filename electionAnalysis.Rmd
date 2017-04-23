@@ -25,18 +25,58 @@ if (!file.exists("referendumResults2016.csv")) {
 ### Select and tidy data
 
 ```{r selectData}
-candidates <- read_excel("electionResults2015.xlsx", sheet = 2)
-constituency <- read_excel("electionResults2015.xlsx", sheet = 3)
-results <- read_excel("electionResults2015.xlsx", sheet = 4)
-partyNames <- read_excel("electionResults2015.xlsx", sheet = 5)
+candidates <- 
+  read_excel("electionResults2015.xlsx", sheet = 2)
+constituency <- 
+  read_excel("electionResults2015.xlsx", sheet = 3)
+results <- 
+  read_excel("electionResults2015.xlsx", sheet = 4)
+partyNames <- 
+  read_excel("electionResults2015.xlsx", sheet = 5)
 
-allData <- 
+votingData <- 
   left_join(
-    constituency, 
-    dplyr::select(results, -one_of(names(results)[1:4], names(results)[6:9]))
+    candidates %>%
+      select(PANO, Surname, `Constituency ID`, `Party abbreviation`, Votes),
+    constituency %>%
+      select(PANO, `Constituency ID`, `Constituency Name`, Electorate, 
+        `Valid Votes`, Region),
+    by = c("PANO", "Constituency ID")
+  ) %>% 
+  group_by(PANO) %>%
+  mutate(
+    resultRank = row_number(desc(Votes)),
+    winningVotes = max(Votes),
+    shortfallVotes = winningVotes - Votes,
+    shortfallVotesPpnElectorate = shortfallVotes / Electorate,
+    shortfallVotesPpnVoted = shortfallVotes / `Valid Votes`
   )
+```
+
+```{r}
+scottishData <- 
+  votingData %>%
+  filter(Region == "Scotland")
+
+topMarginals <- 
+  scottishData %>%
+  ungroup() %>%
+  filter(resultRank == 2) %>%
+  mutate(shortfallPpnVotedRank = min_rank(shortfallVotesPpnVoted)) %>%
+  filter(shortfallPpnVotedRank <= 20) %>%
+  select(PANO, shortfallPpnVotedRank) %>%
+  left_join(
+    scottishData %>%
+      filter(resultRank <= 3),
+    by = c("PANO")
+  ) %>%
+  dplyr::arrange(shortfallPpnVotedRank, resultRank)
+
 
 ```
+
+
+
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
