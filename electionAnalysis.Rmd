@@ -37,11 +37,11 @@ partyNames <-
 votingData <- 
   left_join(
     candidates %>%
-      select(PANO, Surname, `Constituency ID`, `Party abbreviation`, Votes),
+      dplyr::select(PANO, Surname, `Constituency ID `, `Party abbreviation`, Votes),
     constituency %>%
       select(PANO, `Constituency ID`, `Constituency Name`, Electorate, 
         `Valid Votes`, Region),
-    by = c("PANO", "Constituency ID")
+    by = c("PANO", "Constituency ID " = "Constituency ID")
   ) %>% 
   group_by(PANO) %>%
   mutate(
@@ -72,9 +72,19 @@ topMarginals <-
   ) %>%
   dplyr::arrange(shortfallPpnVotedRank, resultRank)
 
-
 ```
 
+```{r}
+
+topMarginals %>%
+  ggplot() +
+  geom_col(
+    aes(x = `Party abbreviation`, y = shortfallVotesPpnVoted, 
+      fill = `Party abbreviation`)) +
+  coord_flip() +
+  facet_wrap(~PANO)
+
+```
 
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
