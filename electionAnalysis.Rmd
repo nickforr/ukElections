@@ -6,6 +6,7 @@ output: html_notebook
 ```{r libraries, include = FALSE}
 library(tidyverse)
 library(scales)
+library(hrbrthemes)
 library(readxl)
 ```
 
@@ -63,7 +64,7 @@ topMarginals <-
   ungroup() %>%
   filter(resultRank == 2) %>%
   mutate(shortfallPpnVotedRank = min_rank(shortfallVotesPpnVoted)) %>%
-  filter(shortfallPpnVotedRank <= 20) %>%
+  filter(shortfallPpnVotedRank <= 10) %>%
   select(PANO, shortfallPpnVotedRank) %>%
   left_join(
     scottishData %>%
@@ -77,12 +78,25 @@ topMarginals <-
 ```{r}
 
 topMarginals %>%
+  filter(resultRank > 1) %>%
+  group_by(PANO) %>%
+  mutate(xAxis = 
+      as.character(percent(shortfallVotesPpnVoted))) %>%
   ggplot() +
+  theme_ipsum() +
   geom_col(
-    aes(x = `Party abbreviation`, y = shortfallVotesPpnVoted, 
-      fill = `Party abbreviation`)) +
+    aes(x = resultRank, y = shortfallVotesPpnVoted, 
+      fill = `Party abbreviation`), alpha = 0.5) +
+  geom_text(
+    aes(x = resultRank, y = 0, label = shortfallVotes), hjust = 0) +
+  scale_fill_ipsum() +
+  scale_y_continuous(labels = percent) +
+  scale_x_discrete(labels = NULL) +
+  ylab("Shortfall (as pct of votes cast)") +
+  xlab(NULL) +
   coord_flip() +
-  facet_wrap(~PANO)
+  facet_wrap(~PANO, ncol = 5, scales = "free_x") +
+  theme(legend.position = "bottom", legend.direction = "horizontal")
 
 ```
 
