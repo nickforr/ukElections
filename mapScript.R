@@ -24,8 +24,11 @@ leaflet(data = constituencyShapefile) %>%
   addPolygons(fill = FALSE, stroke = TRUE, color = "#03F")
 
 leaflet(data = simplifiedConstituencyShapefile) %>% 
-  addTiles() %>% 
-  addPolygons(fill = FALSE, stroke = TRUE, color = "#03F")
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  #addTiles() %>% 
+  addPolygons(
+    fill = FALSE, stroke = TRUE, color = "#03F", 
+    weight = 1)
 
 
 
