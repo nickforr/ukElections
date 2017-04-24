@@ -254,7 +254,7 @@ output$constituencyMap <- renderLeaflet({
     simplifiedConstituencyShapefile$`1`, 
     simplifiedConstituencyShapefile$`2`,
     paste0(
-      round(100 * simplifiedConstituencyShapefile$shortfallVotesPpnVoted, 0),
+      round(-100 * simplifiedConstituencyShapefile$shortfallVotesPpnVoted, 0),
       "%"),
     simplifiedConstituencyShapefile$`3`
   ) %>% lapply(htmltools::HTML)
