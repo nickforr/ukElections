@@ -30,9 +30,11 @@ if (!file.exists("referendumResults2016.csv")) {
 }
 if (!file.exists("votingData.RDS")) {
   candidates <- 
-    readxl::read_excel("electionResults2015.xlsx", sheet = 2)
+    readxl::read_excel("electionResults2015.xlsx", sheet = 2) %>%
+    filter(PANO != is.na(PANO))
   constituency <- 
-    readxl::read_excel("electionResults2015.xlsx", sheet = 3)
+    readxl::read_excel("electionResults2015.xlsx", sheet = 3) %>%
+    filter(PANO != is.na(PANO))
   votingData <- 
     left_join(
       candidates %>%
@@ -97,6 +99,11 @@ regionVotingData <- reactive({
   filter(Region == input$regionChoice)
 })
 
+constituenciesInRegion <- reactive({
+  regionData <- regionVotingData()
+  unique(regionData$constituencyName)
+})
+
 #render ui to select constituecy
 output$constituencySelect <- renderUI({
   regionData <- regionVotingData()
@@ -108,6 +115,11 @@ output$constituencySelect <- renderUI({
 })
   
 uiOutput("constituencySelect")
+
+constituencyVotingData <- reactive({
+  votingData %>% 
+    filter(Region )
+})
 ```
 
 Whether you have views on Scottish independence or on Brexit, the upcoming election suggests a greater relevance for tactical voting.  
@@ -125,7 +137,12 @@ Row
 ### Chart A
 
 ```{r}
-
+output$constituencyPlot <- renderPlot({
+  
+  
+  
+  
+})
 ```
 
 Row
@@ -133,6 +150,7 @@ Row
 
 ### Chart B
 
+If leaflet chart then: caption <- "Contains OS data © Crown copyright and database right 2017"
 ```{r}
 
 ```
@@ -148,7 +166,7 @@ Marginal constituencies in region
 
 ### Top ten marginal constituencies
 
-Credits
+About
 =======================================================================
 
 ### Background  
@@ -172,7 +190,11 @@ More generally, I would prefer to see far less tribalism and a much greater will
 
 e
 
-### Citations
+### References
+
+Data sourced from: http://www.electoralcommission.org.uk
+
+Contains OS data &copy; Crown copyright and database right 2017
 
 Flexdashboard layout inspiration: <https://github.com/walkerke/neighborhood_diversity>
 
