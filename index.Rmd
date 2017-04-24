@@ -3,7 +3,7 @@ title: "A guide to tactical voting for 2017 election"
 runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
-    orientation: rows
+    orientation: columns
     vertical_layout: fill
     social: menu
     source_code: https://github.com/nickforr/ukEelctions
@@ -26,6 +26,8 @@ if (!file.exists("electionResults2015.xlsx")) {
   download.file("http://www.electoralcommission.org.uk/__data/assets/excel_doc/0011/189623/2015-UK-general-election-data-results-WEB.xlsx", "electionResults2015.xlsx")
 }
 
+simplifiedConstituencyShapefile <- 
+  readRDS("simplifiedShapefile.RDS")
 
 partySelection <- 
   c("Con", "Lab", "UKIP", "SNP", "LD", "Green", "PC", "Ind") 
@@ -38,7 +40,7 @@ if (!file.exists("votingData.RDS")) {
   candidates <- 
     readxl::read_excel("electionResults2015.xlsx", sheet = 2) %>%
     filter(PANO != is.na(PANO)) %>%
-    rename(constituencyId = `Constituency ID `)
+    rename(constituencyId = `Constituency ID`)
   constituency <- 
     readxl::read_excel("electionResults2015.xlsx", sheet = 3) %>%
     filter(PANO != is.na(PANO)) %>%
@@ -127,7 +129,7 @@ constituenciesInRegion <- reactive({
 #render ui to select constituecy
 output$constituencySelect <- renderUI({
   regionData <- regionVotingData()
-  constituencies <- unique(regionData$constituencyName)
+  constituencies <- sort(unique(regionData$constituencyName))
   selectInput(
     inputId = "constituencyChoice", label = "Select constituency:",
     choices = constituencies
@@ -152,7 +154,7 @@ The [Marginal constituencies in region](#section-marginal-constituencies-in-regi
 Explore constituency
 =======================================================================
 
-Row
+Column
 -----------------------------------------------------------------------
 
 ### Constituency results
@@ -173,7 +175,7 @@ output$constituencyPlot <- renderPlot({
       caption = 
         paste0(
           scales::ordinal(unique(constituencyData$shortfallByRegionRank)), 
-          "most marginal seat in region (",
+          " most marginal seat in region (",
           scales::ordinal(unique(constituencyData$shortfallRank)), 
           " overall)"
         )) +
@@ -199,21 +201,76 @@ plotOutput("constituencyPlot")
 ```
 
 
-Row
+Column
 -----------------------------------------------------------------------
 
-### Chart B
-
-If leaflet chart then: caption <- "Contains OS data © Crown copyright and database right 2017"
-```{r}
-
-```
-
-### Chart C
+### Mapping constituencies
 
 ```{r}
+constituencyChoice <- votingData$constituencyName[141]
 
+mapVotingData <- 
+  votingData %>%
+  filter(resultRank <= 3) %>% 
+  select(constituencyId, constituencyName, resultRank, partyAbbreviation, 
+    shortfallRank) %>%
+  spread(key = resultRank, value = partyAbbreviation) %>%
+  left_join(
+    votingData %>%
+      filter(resultRank == 2) %>%
+      select(constituencyName, shortfallVotesPpnVoted), 
+    by = c("constituencyName")
+  ) %>%
+  mutate(polygonStroke = 
+      ifelse(constituencyName == constituencyChoice, TRUE, FALSE)) %>%
+  mutate(mapConstituencyName = 
+      toupper(constituencyName) %>%
+      stringr::str_replace(" ", "_") %>%
+      iconv("", "ASCII//TRANSLIT") %>%
+      stringr::str_replace("\\^", "")
+  )
+simplifiedConstituencyShapefile@data <- 
+  left_join(
+    simplifiedConstituencyShapefile@data, 
+    mapVotingData, 
+    by = c("CODE" = "constituencyId")
+  )
+
+pal <- 
+  colorNumeric("viridis", 
+    domain = simplifiedConstituencyShapefile$shortfallVotesPpnVoted,
+    reverse = TRUE
+  )
+selectedData <- 
+  subset(simplifiedConstituencyShapefile, 
+    constituencyName == constituencyChoice)
+
+labels <- sprintf(
+  "<strong>%s</strong><br/>%s",
+  simplifiedConstituencyShapefile$`1`, 
+  simplifiedConstituencyShapefile$`2`
+) %>% lapply(htmltools::HTML)
+
+leaflet(data = simplifiedConstituencyShapefile) %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(
+    mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
+    7) %>%
+  #addTiles() %>% 
+  addPolygons(fill = TRUE,
+    fillColor = ~pal(shortfallVotesPpnVoted), stroke = TRUE, 
+    color = ~ifelse(polygonStroke, "black", "white"), 
+    dashArray = ~ifelse(polygonStroke, "", "3"),
+    weight = ~ifelse(polygonStroke, 7, 1), fillOpacity = 0.5, 
+    label = labels,
+    highlight = highlightOptions(
+    bringToFront = TRUE)
+  ) %>%
+  addLegend(pal = pal, values = ~shortfallVotesPpnVoted, 
+    labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
+    opacity = 0.6, title = "Shortfall", position = "bottomright")
 ```
+
 
 Marginal constituencies in region
 =======================================================================

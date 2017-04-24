@@ -33,7 +33,10 @@ leaflet(data = simplifiedConstituencyShapefile) %>%
 
 
 
+a <- stringr::str_replace_all(simplifiedConstituencyShapefile$FILE_NAME, c("_CO_CONST" = "", "_BORO_CONST" = "", "_BURGH_CONST" = ""))
 
+b <- stringr::str_replace(toupper(constituency$`Constituency Name`), " ", "_")
+stringr::str_replace(iconv(dd, '', 'ASCII//TRANSLIT'), "\\^", "")
 
 
 
