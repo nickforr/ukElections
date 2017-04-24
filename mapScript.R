@@ -15,7 +15,15 @@ constituencyShapefile <-
   shapefile("/Users/nick/Documents/bdline_essh_gb/Data/GB/westminster_const_region.shp") %>%
   spTransform(CRS("+init=epsg:4326"))
 
+simplifiedConstituencyShapefile <- 
+  rmapshaper::ms_simplify(constituencyShapefile)
+
+saveRDS(simplifiedConstituencyShapefile, "simplifiedShapefile.RDS")
 leaflet(data = constituencyShapefile) %>% 
+  addTiles() %>% 
+  addPolygons(fill = FALSE, stroke = TRUE, color = "#03F")
+
+leaflet(data = simplifiedConstituencyShapefile) %>% 
   addTiles() %>% 
   addPolygons(fill = FALSE, stroke = TRUE, color = "#03F")
 
