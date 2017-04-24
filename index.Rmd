@@ -207,68 +207,82 @@ Column
 ### Mapping constituencies
 
 ```{r}
-constituencyChoice <- votingData$constituencyName[141]
+output$constituencyMap <- renderLeaflet({
+  req(input$constituencyChoice)
 
-mapVotingData <- 
-  votingData %>%
-  filter(resultRank <= 3) %>% 
-  select(constituencyId, constituencyName, resultRank, partyAbbreviation, 
-    shortfallRank) %>%
-  spread(key = resultRank, value = partyAbbreviation) %>%
-  left_join(
+  constituencyChoice <- input$constituencyChoice
+  
+  mapVotingData <- 
     votingData %>%
-      filter(resultRank == 2) %>%
-      select(constituencyName, shortfallVotesPpnVoted), 
-    by = c("constituencyName")
-  ) %>%
-  mutate(polygonStroke = 
-      ifelse(constituencyName == constituencyChoice, TRUE, FALSE)) %>%
-  mutate(mapConstituencyName = 
-      toupper(constituencyName) %>%
-      stringr::str_replace(" ", "_") %>%
-      iconv("", "ASCII//TRANSLIT") %>%
-      stringr::str_replace("\\^", "")
-  )
-simplifiedConstituencyShapefile@data <- 
-  left_join(
-    simplifiedConstituencyShapefile@data, 
-    mapVotingData, 
-    by = c("CODE" = "constituencyId")
-  )
-
-pal <- 
-  colorNumeric("viridis", 
-    domain = simplifiedConstituencyShapefile$shortfallVotesPpnVoted,
-    reverse = TRUE
-  )
-selectedData <- 
-  subset(simplifiedConstituencyShapefile, 
-    constituencyName == constituencyChoice)
-
-labels <- sprintf(
-  "<strong>%s</strong><br/>%s",
-  simplifiedConstituencyShapefile$`1`, 
-  simplifiedConstituencyShapefile$`2`
-) %>% lapply(htmltools::HTML)
-
-leaflet(data = simplifiedConstituencyShapefile) %>% 
-  addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(
-    mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
-    7) %>%
-  #addTiles() %>% 
-  addPolygons(fill = TRUE,
-    fillColor = ~pal(shortfallVotesPpnVoted), stroke = TRUE, 
-    color = ~ifelse(polygonStroke, "black", "white"), 
-    dashArray = ~ifelse(polygonStroke, "", "3"),
-    weight = ~ifelse(polygonStroke, 7, 1), fillOpacity = 0.5, 
-    label = labels,
-    highlight = highlightOptions(
-    bringToFront = TRUE)
-  ) %>%
-  addLegend(pal = pal, values = ~shortfallVotesPpnVoted, 
-    labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
-    opacity = 0.6, title = "Shortfall", position = "bottomright")
+    filter(resultRank <= 3) %>% 
+    select(constituencyId, constituencyName, resultRank, partyAbbreviation, 
+      shortfallRank) %>%
+    spread(key = resultRank, value = partyAbbreviation) %>%
+    left_join(
+      votingData %>%
+        filter(resultRank == 2) %>%
+        select(constituencyName, shortfallVotesPpnVoted), 
+      by = c("constituencyName")
+    ) %>%
+    mutate(polygonStroke = 
+        ifelse(constituencyName == constituencyChoice, TRUE, FALSE)) %>%
+    mutate(mapConstituencyName = 
+        toupper(constituencyName) %>%
+        stringr::str_replace(" ", "_") %>%
+        iconv("", "ASCII//TRANSLIT") %>%
+        stringr::str_replace("\\^", "")
+    )
+  simplifiedConstituencyShapefile@data <- 
+    left_join(
+      simplifiedConstituencyShapefile@data, 
+      mapVotingData, 
+      by = c("CODE" = "constituencyId")
+    )
+  
+  pal <- 
+    colorNumeric("viridis", 
+      domain = simplifiedConstituencyShapefile$shortfallVotesPpnVoted,
+      reverse = TRUE
+    )
+  selectedData <- 
+    subset(simplifiedConstituencyShapefile, 
+      constituencyName == constituencyChoice)
+  
+  labels <- sprintf(
+    "<strong>%s</strong><br>First: %s<br>Second: %s (%s)<br>Third: %s",
+    simplifiedConstituencyShapefile$constituencyName,
+    simplifiedConstituencyShapefile$`1`, 
+    simplifiedConstituencyShapefile$`2`,
+    paste0(
+      round(100 * simplifiedConstituencyShapefile$shortfallVotesPpnVoted, 0),
+      "%"),
+    simplifiedConstituencyShapefile$`3`
+  ) %>% lapply(htmltools::HTML)
+  
+  leaflet(data = simplifiedConstituencyShapefile) %>% 
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    setView(
+      mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
+      7) %>%
+    #addTiles() %>% 
+    addPolygons(fill = TRUE,
+      fillColor = ~pal(shortfallVotesPpnVoted), stroke = TRUE, 
+      color = ~ifelse(polygonStroke, "black", "white"), 
+      dashArray = ~ifelse(polygonStroke, "", "3"),
+      weight = ~ifelse(polygonStroke, 7, 1), fillOpacity = 0.5, 
+      label = labels,
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto"),
+      highlight = highlightOptions(
+        bringToFront = TRUE)
+    ) %>%
+    addLegend(pal = pal, values = ~shortfallVotesPpnVoted, 
+      labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
+      opacity = 0.6, title = "Shortfall", position = "bottomright")
+})
+leafletOutput("constituencyMap")
 ```
 
 
