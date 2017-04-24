@@ -25,36 +25,55 @@ library(leaflet)
 if (!file.exists("electionResults2015.xlsx")) {
   download.file("http://www.electoralcommission.org.uk/__data/assets/excel_doc/0011/189623/2015-UK-general-election-data-results-WEB.xlsx", "electionResults2015.xlsx")
 }
-if (!file.exists("referendumResults2016.csv")) {
-  download.file("http://www.electoralcommission.org.uk/__data/assets/file/0014/212135/EU-referendum-result-data.csv",  "referendumResults2016.csv")
-}
+
+
+partySelection <- 
+  c("Con", "Lab", "UKIP", "SNP", "LD", "Green", "PC", "Ind") 
+partyPalette <- 
+  c("#0087dc", "#d50000", "#B3009D", "#FFF95D", "#FDBB30", "#8dc63f", 
+    "#3F8428", "#d18975") %>%
+  set_names(partySelection)
+
 if (!file.exists("votingData.RDS")) {
   candidates <- 
     readxl::read_excel("electionResults2015.xlsx", sheet = 2) %>%
-    filter(PANO != is.na(PANO))
+    filter(PANO != is.na(PANO)) %>%
+    rename(constituencyId = `Constituency ID `)
   constituency <- 
     readxl::read_excel("electionResults2015.xlsx", sheet = 3) %>%
-    filter(PANO != is.na(PANO))
-  votingData <- 
-    left_join(
-      candidates %>%
-        select(PANO, Surname, `Constituency ID`, 
-          `Party abbreviation`, Votes),
-      constituency %>%
-        select(PANO, `Constituency ID`, `Constituency Name`, 
-          Electorate, `Valid Votes`, Region),
-      by = c("PANO", "Constituency ID")
-    ) %>% 
     filter(PANO != is.na(PANO)) %>%
     rename(
       constituencyId = `Constituency ID`,
-      constituencyName = `Constituency Name`,
+      constituencyName = `Constituency Name`
+    )
+  votingData <- 
+    left_join(
+      candidates %>%
+        select(PANO, Surname, constituencyId, 
+          `Party abbreviation`, Votes),
+      constituency %>%
+        select(PANO, constituencyId, constituencyName, 
+          Electorate, `Valid Votes`, Region),
+      by = c("PANO", "constituencyId")
+    ) %>% 
+    filter(PANO != is.na(PANO)) %>%
+    rename(
       validVotes = `Valid Votes`,
       partyAbbreviation = `Party abbreviation`
     ) %>%
+    filter(partyAbbreviation %in% partySelection) %>%
+    mutate(
+      partyAbbreviation = 
+        factor(partyAbbreviation, levels = partySelection)) %>%
     group_by(PANO) %>%
     mutate(
       resultRank = row_number(desc(Votes)),
+      votesPpnElectorate = Votes / Electorate,
+      VotesPpnVoted = Votes / validVotes,
+      votesPpnLabel = 
+        paste0(
+          sprintf("%.0f", VotesPpnVoted * 100), "% (", 
+          sprintf("%.0f", votesPpnElectorate * 100), "%)"),
       winningVotes = max(Votes),
       shortfallVotes = winningVotes - Votes,
       shortfallVotesPpnElectorate = shortfallVotes / Electorate,
@@ -79,6 +98,7 @@ if (!file.exists("votingData.RDS")) {
 }
 
 regionList <- unique(votingData$Region)
+
 ```
 
 Sidebar {.sidebar}
@@ -117,8 +137,9 @@ output$constituencySelect <- renderUI({
 uiOutput("constituencySelect")
 
 constituencyVotingData <- reactive({
+  req(input$constituencyChoice)
   votingData %>% 
-    filter(Region )
+    filter(constituencyName == input$constituencyChoice)
 })
 ```
 
@@ -134,16 +155,49 @@ Explore constituency
 Row
 -----------------------------------------------------------------------
 
-### Chart A
+### Constituency results
 
 ```{r}
-output$constituencyPlot <- renderPlot({
-  
-  
-  
-  
+output$constituencyChoice <- renderText({
+  input$constituencyChoice
 })
+output$constituencyPlot <- renderPlot({
+  constituencyChoice <- input$constituencyChoice
+  constituencyData <- constituencyVotingData()
+  
+  constituencyData %>%
+    ggplot() +
+    theme_minimal(base_size = 16) +
+    labs(
+      subtitle = constituencyChoice, 
+      caption = 
+        paste0(
+          scales::ordinal(unique(constituencyData$shortfallByRegionRank)), 
+          "most marginal seat in region (",
+          scales::ordinal(unique(constituencyData$shortfallRank)), 
+          " overall)"
+        )) +
+    geom_col(
+      aes(
+        x = partyAbbreviation, 
+        y = Votes,
+        fill = partyAbbreviation
+      )
+    ) +
+    geom_text(
+      aes(
+        x = partyAbbreviation, y = Votes, label = votesPpnLabel
+      ), size = 4, vjust = 0
+    ) +
+    scale_fill_manual(values = partyPalette, guide = "none") +
+    scale_y_continuous(
+      labels = comma, breaks = pretty_breaks(n = 6), expand = c(0.1, 0)) +
+    xlab(NULL) + ylab(NULL) + 
+    theme(plot.caption = element_text(size = 12))
+})
+plotOutput("constituencyPlot")
 ```
+
 
 Row
 -----------------------------------------------------------------------
@@ -197,6 +251,8 @@ Data sourced from: http://www.electoralcommission.org.uk
 Contains OS data &copy; Crown copyright and database right 2017
 
 Flexdashboard layout inspiration: <https://github.com/walkerke/neighborhood_diversity>
+
+Political party colours: <http://blog.richardallen.co.uk/uk-political-party-web-colours/>
 
 ```{r, results = "asis"}
 citationFn <- function(pkgName = "base") {
