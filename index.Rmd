@@ -118,7 +118,7 @@ simplifiedConstituencyShapefile@data <-
     by = c("CODE" = "constituencyId")
   )
 
-regionList <- unique(votingData$Region)
+regionList <- sort(unique(votingData$Region))
 
 leafletPalette <- 
     colorNumeric("viridis", 
@@ -287,6 +287,37 @@ Marginal constituencies in region
 
 ### Top ten marginal constituencies
 
+```{r}
+output$marginalFacet <- renderPlot({
+  regionData <- regionVotingData()
+  regionData %>%
+    filter(shortfallByRegionRank <= 6) %>%
+    ggplot() +
+    theme_minimal(base_size = 16) +
+    geom_col(
+      aes(
+        x = partyAbbreviation, 
+        y = Votes,
+        fill = partyAbbreviation
+      )
+    ) +
+    geom_text(
+      aes(
+        x = partyAbbreviation, y = Votes, 
+        label = sprintf("%.0f%%" , VotesPpnVoted * 100)
+      ), size = 4, vjust = 0
+    ) +
+    scale_fill_manual(values = partyPalette, guide = "none") +
+    scale_y_continuous(
+      labels = comma, breaks = pretty_breaks(n = 6), expand = c(0.1, 0)) +
+    xlab(NULL) + ylab(NULL) + 
+    theme(plot.caption = element_text(size = 12)) +
+    facet_wrap(~constituencyName, ncol = 3)
+})
+plotOutput("marginalFacet")
+```
+
+
 About
 =======================================================================
 
@@ -294,7 +325,7 @@ About
 
 I put together this app partly because I like playing around with [R](https://cran.r-project.org) and [Shiny](http://shiny.rstudio.com) and also because the upcoming 2017 UK election is likely to be extremely disappointing so I wanted to do something that might potentially be of some small use.  
 
-As someone who sees themselves as Scottish, British and European, I have little time for the parochialism and, in many cases, racism on show in both the Scottish Independence and 'Brexit' debates; and even less time for the rank hypocrisy shown by many politicians.
+As someone who sees themselves as Scottish, British and European, I have little time for the parochialism and, in many cases, racism on show in both the Scottish Independence and 'Brexit' debates; and even less time for the rank hypocrisy (and often dishonesty) shown by many politicians regarding any uncomfortable information that might impact negatively on their views.
 
 When it comes to Scotland, it's my view that independence would do far greater harm to the poorest in our society than any austerity measures that the Conservative party in Westminster may enact; there are degrees of harm and, as unfortunate as it is, voting to cut off your foot is better than voting to cut off your leg.
 
@@ -302,15 +333,7 @@ With regard to Europe, I think the blame for how many people feel towards the EU
 
 If pushed to put a label on it, I would probably characterise my politics as centre-left; I'm typically torn between the Labour party and the Liberal Democrats. And whilst I may disagree with many of their policies, I would note that there are many Conservative MPs whom I respect (the attempt to paint the Conservative party as 'evil monsters' by many in Scotland does nobody any good).
 
-That said, I'm afraid that Labour under Jeremy Corbyn is not something I feel at all comfortable with.
-
 More generally, I would prefer to see far less tribalism and a much greater willingness to seek compromise and collaboration across party lines (for example, as much as I disagree with David Davis on 'Brexit', I respected his stance re civil liberties - more so than could be said for the likes of Andy Burnham).
-
-
-
-
-
-e
 
 ### References
 
