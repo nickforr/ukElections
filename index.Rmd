@@ -174,7 +174,7 @@ Whether you have views on Scottish independence or on Brexit, the upcoming elect
 
 Use the [Explore constituency](#section-explore-constituency) tab to see more detail about your chosen constituency.  
 
-The [Marginal constituencies in region](#section-marginal-constituencies-in-region) tab highlights the top ten marginal contituencies in the selected region.
+The [Marginal constituencies in region](#section-marginal-constituencies-in-region) tab highlights the top marginal contituencies in the selected region.
 
 Explore constituency
 =======================================================================
@@ -225,6 +225,9 @@ output$constituencyPlot <- renderPlot({
 plotOutput("constituencyPlot")
 ```
 
+### Another chart
+
+Something here
 
 Column
 -----------------------------------------------------------------------
@@ -278,6 +281,27 @@ output$constituencyMap <- renderLeaflet({
       labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
       opacity = 0.7, title = "Shortfall", position = "bottomright")
 })
+# Click event for the map (will use to generate chart)
+click_tract <- eventReactive(input$constituencyMap_shape_click, {
+    x <- input$constituencyMap_shape_click
+    x$id
+  })
+observe({
+  
+  req(click_tract()) # do this if click_tract() is not null
+  # Add the clicked tract to the map in aqua, and remove when a new one is clicked
+  map <- leafletProxy('constituencyMap') %>%
+      removeShape('htract') %>%
+      addPolygons(
+        data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$GEOID == click_tract(), ], 
+        fill = FALSE, color = '#FF00FF', opacity = 1, layerId = 'htract')
+  })
+# tract_data <- reactive({
+#   
+#     # Fetch data for the clicked tract
+#     return(metro()@data[metro()@data$GEOID == click_tract(), ])
+# 
+#   })
 leafletOutput("constituencyMap")
 ```
 
@@ -285,7 +309,7 @@ leafletOutput("constituencyMap")
 Marginal constituencies in region
 =======================================================================
 
-### Top ten marginal constituencies
+### Top marginal constituencies in selected region
 
 ```{r}
 output$marginalFacet <- renderPlot({
@@ -294,6 +318,10 @@ output$marginalFacet <- renderPlot({
     filter(shortfallByRegionRank <= 6) %>%
     ggplot() +
     theme_minimal(base_size = 16) +
+    labs(
+      caption = 
+        paste0("Showing consitituencies in ", unique(regionData$Region))
+    ) +
     geom_col(
       aes(
         x = partyAbbreviation, 
