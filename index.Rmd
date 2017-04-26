@@ -236,19 +236,19 @@ Column
 
 ```{r}
 output$constituencyMap <- renderLeaflet({
-  req(input$constituencyChoice)
+  req(input$regionChoice)
 
-  constituencyChoice <- input$constituencyChoice
+  #constituencyChoice <- input$constituencyChoice
   
-  simplifiedConstituencyShapefile@data <-  
-    simplifiedConstituencyShapefile@data %>%
-    mutate(polygonStroke = 
-        ifelse(constituencyName == constituencyChoice, TRUE, FALSE))
-  
-  selectedData <- 
-    subset(simplifiedConstituencyShapefile, 
-      constituencyName == constituencyChoice)
-  
+  # simplifiedConstituencyShapefile@data <-  
+  #   simplifiedConstituencyShapefile@data %>%
+  #   mutate(polygonStroke = 
+  #       ifelse(constituencyName == constituencyChoice, TRUE, FALSE))
+  # 
+  # selectedData <- 
+  #   subset(simplifiedConstituencyShapefile, 
+  #     constituencyName == constituencyChoice)
+  # 
   labels <- sprintf(
     "<strong>%s</strong><br>First: %s<br>Second: %s (%s)<br>Third: %s",
     simplifiedConstituencyShapefile$constituencyName,
@@ -262,18 +262,20 @@ output$constituencyMap <- renderLeaflet({
   
   leaflet(data = simplifiedConstituencyShapefile) %>% 
     addProviderTiles(providers$CartoDB.Positron) %>%
-    setView(
-      mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
-      7) %>%
+    # setView(
+    #   mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
+    #   7) %>%
     addPolygons(
-      fillColor = ~leafletPalette(shortfallVotesPpnVoted), fillOpacity = 0.6, 
-      stroke = TRUE, color = ~ifelse(polygonStroke, "black", "white"), 
-      dashArray = ~ifelse(polygonStroke, "", "3"),
-      weight = ~ifelse(polygonStroke, 7, 1), 
+      fillColor = ~leafletPalette(shortfallVotesPpnVoted), 
+      fillOpacity = 0.6, 
+      layerId = ~POLYGON_ID,
+      stroke = TRUE, color = "white", #~ifelse(polygonStroke, "black", "white"), 
+      dashArray = 3, #~ifelse(polygonStroke, "", "3"),
+      weight = 1, #~ifelse(polygonStroke, 7, 1), 
       label = labels,
       labelOptions = labelOptions(
-        style = list("font-weight" = "normal", padding = "3px 8px"),
-        textsize = "14px",
+        style = list("font-weight" = "normal", padding = "3px 5px"),
+        textsize = "10px",
         direction = "auto")
     ) %>%
     addLegend(
@@ -282,26 +284,30 @@ output$constituencyMap <- renderLeaflet({
       opacity = 0.7, title = "Shortfall", position = "bottomright")
 })
 # Click event for the map (will use to generate chart)
-click_tract <- eventReactive(input$constituencyMap_shape_click, {
+click_constituency <- eventReactive(input$constituencyMap_shape_click, {
     x <- input$constituencyMap_shape_click
     x$id
   })
 observe({
-  
-  req(click_tract()) # do this if click_tract() is not null
-  # Add the clicked tract to the map in aqua, and remove when a new one is clicked
-  map <- leafletProxy('constituencyMap') %>%
-      removeShape('htract') %>%
-      addPolygons(
-        data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$GEOID == click_tract(), ], 
-        fill = FALSE, color = '#FF00FF', opacity = 1, layerId = 'htract')
+  req(click_constituency()) # do this if click_tract() is not null
+  # Add the clicked tract to the map in black, and remove when a new one is
+  # clicked
+  map <- 
+    leafletProxy('constituencyMap') %>%
+    removeShape('selectedConstituency') %>%
+    addPolygons(
+      data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$POLYGON_ID == click_constituency(), ], 
+      fill = FALSE, color = "black", 
+      opacity = 1, layerId = 'selectedConstituency')
   })
-# tract_data <- reactive({
-#   
-#     # Fetch data for the clicked tract
-#     return(metro()@data[metro()@data$GEOID == click_tract(), ])
-# 
-#   })
+constituency_data <- reactive({
+    # Fetch data for the clicked constituency
+  (simplifiedConstituencyShapefile[
+    simplifiedConstituencyShapefile$POLYGON_ID == click_constituency(), ]
+  )$constituencyName
+})
+# updateSelectInput(
+#   getDefaultReactiveDomain(), "constituencyChoice")
 leafletOutput("constituencyMap")
 ```
 
