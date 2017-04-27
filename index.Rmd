@@ -21,6 +21,7 @@ library(scales)
 library(hrbrthemes)
 library(viridis)
 library(leaflet)
+library(waffle)
 
 if (!file.exists("electionResults2015.xlsx")) {
   download.file("http://www.electoralcommission.org.uk/__data/assets/excel_doc/0011/189623/2015-UK-general-election-data-results-WEB.xlsx", "electionResults2015.xlsx")
@@ -28,13 +29,6 @@ if (!file.exists("electionResults2015.xlsx")) {
 
 simplifiedConstituencyShapefile <- 
   readRDS("simplifiedShapefile.RDS")
-
-partySelection <- 
-  c("Con", "Lab", "UKIP", "SNP", "LD", "Green", "PC", "Ind") 
-partyPalette <- 
-  c("#0087dc", "#d50000", "#B3009D", "#FFF95D", "#FDBB30", "#8dc63f", 
-    "#3F8428", "#d18975") %>%
-  set_names(partySelection)
 
 if (!file.exists("votingData.RDS")) {
   candidates <- 
@@ -63,25 +57,23 @@ if (!file.exists("votingData.RDS")) {
       validVotes = `Valid Votes`,
       partyAbbreviation = `Party abbreviation`
     ) %>%
-    filter(partyAbbreviation %in% partySelection) %>%
-    mutate(
-      partyAbbreviation = 
-        factor(partyAbbreviation, levels = partySelection)) %>%
     group_by(PANO) %>%
+    mutate(resultRank = row_number(desc(Votes))) %>%
+    filter(resultRank <= 4) %>%
     mutate(
-      resultRank = row_number(desc(Votes)),
       votesPpnElectorate = Votes / Electorate,
       VotesPpnVoted = Votes / validVotes,
-      votesPpnLabel = 
-        paste0(
-          sprintf("%.0f", VotesPpnVoted * 100), "% (", 
-          sprintf("%.0f", votesPpnElectorate * 100), "%)"),
+      votesPpnLabel = sprintf("%.0f", VotesPpnVoted * 100),
       winningVotes = max(Votes),
       shortfallVotes = winningVotes - Votes,
       shortfallVotesPpnElectorate = shortfallVotes / Electorate,
       shortfallVotesPpnVoted = shortfallVotes / validVotes
     ) %>%
-    ungroup()
+    ungroup() %>%
+    mutate(
+      partyAbbreviation = 
+        factor(partyAbbreviation, levels = unique(partyAbbreviation)))
+  
   votingData <- 
     votingData %>%
     left_join(
@@ -99,6 +91,21 @@ if (!file.exists("votingData.RDS")) {
   votingData <- readRDS("votingData.RDS")
 }
 
+allPartyNames <- 
+  unique(filter(votingData, resultRank == 1)$partyAbbreviation)
+ 
+partyPalette <- 
+  magma(length(allPartyNames)) %>%
+  set_names(allPartyNames)
+
+partySelection <- 
+  c("Con", "Lab", "UKIP", "SNP", "LD", "Green", "PC", "Ind") 
+selectionPalette <- 
+  c("#0087dc", "#d50000", "#B3009D", "#FFF95D", "#FDBB30", "#8dc63f", 
+    "#3F8428", "#d18975")
+
+partyPalette[partySelection] <- selectionPalette
+    
 mapVotingData <- 
   votingData %>%
   filter(resultRank <= 3) %>% 
@@ -140,6 +147,14 @@ leafletPalette <-
       reverse = TRUE
     )
 
+waffleData2015 <- 
+  votingData %>%
+  filter(resultRank == 1) %>%
+  group_by(partyAbbreviation) %>%
+  summarise(a = n()) %>%
+  arrange(desc(a))
+
+z <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbreviation), colors = partyPalette, rows = 20)
 ```
 
 Sidebar {.sidebar}
