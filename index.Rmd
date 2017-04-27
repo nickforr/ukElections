@@ -252,7 +252,7 @@ Column
 
 ```{r}
 output$constituencyMap <- renderLeaflet({
-  req(input$constituencyChoice)
+  #req(input$regionChoice)
 
   leaflet(data = simplifiedConstituencyShapefile) %>% 
     addProviderTiles(providers$CartoDB.Positron) %>%
@@ -288,8 +288,8 @@ observe({
   leafletProxy('constituencyMap') %>%
     removeShape('selectedConstituency') %>%
     addPolygons(
-      data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$POLYGON_ID == input$constituencyChoice, ], 
-      fill = FALSE, color = "black", weight = 5,
+      data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$constituencyName == input$constituencyChoice, ], 
+      fill = FALSE, color = "black", weight = 3,
       opacity = 1, layerId = 'selectedConstituency')
   })
 
