@@ -1,5 +1,5 @@
 ---
-title: "A guide to tactical voting for 2017 election"
+title: "Finding marginal seats in the 2017 election"
 runtime: shiny
 output: 
   flexdashboard::flex_dashboard:
@@ -102,13 +102,16 @@ if (!file.exists("votingData.RDS")) {
 mapVotingData <- 
   votingData %>%
   filter(resultRank <= 3) %>% 
-  select(constituencyId, constituencyName, resultRank, partyAbbreviation, 
+  mutate(mapLabel = 
+      sprintf("%s (%.0f%%)", as.character(partyAbbreviation), 
+        VotesPpnVoted * 100)) %>%
+  select(constituencyId, constituencyName, resultRank, mapLabel, 
     shortfallRank) %>%
-  spread(key = resultRank, value = partyAbbreviation) %>%
+  spread(key = resultRank, value = mapLabel) %>%
   left_join(
     votingData %>%
       filter(resultRank == 2) %>%
-      select(constituencyName, shortfallVotesPpnVoted), 
+      select(constituencyName, shortfallVotesPpnVoted),
     by = c("constituencyName")
   )
 simplifiedConstituencyShapefile@data <- 
@@ -117,6 +120,17 @@ simplifiedConstituencyShapefile@data <-
     mapVotingData, 
     by = c("CODE" = "constituencyId")
   )
+mapLabels <- 
+  sprintf(
+    "<strong>%s</strong><br>
+    First: %s<br>
+    Second: %s<br>
+    Third: %s",
+    simplifiedConstituencyShapefile$constituencyName,
+    simplifiedConstituencyShapefile$`1`, 
+    simplifiedConstituencyShapefile$`2`,
+    simplifiedConstituencyShapefile$`3`
+  ) %>% lapply(htmltools::HTML)
 
 regionList <- sort(unique(votingData$Region))
 
@@ -137,30 +151,32 @@ Sidebar {.sidebar}
 #Select input for region
 selectInput(
   inputId = "regionChoice", label = "Select a region:", 
-  choices = regionList, selected = "Scotland"
+  choices = c("All", regionList), selected = "Scotland"
 )
 
 #Filter data based on region data
 regionVotingData <- reactive({
-  votingData %>%
-  filter(Region == input$regionChoice)
+  if (input$regionChoice == "All") {
+    votingData
+  } else {
+    votingData %>%
+      filter(Region == input$regionChoice)
+  }
 })
 
 constituenciesInRegion <- reactive({
   regionData <- regionVotingData()
-  unique(regionData$constituencyName)
+  sort(unique(regionData$constituencyName))
 })
 
 #render ui to select constituecy
 output$constituencySelect <- renderUI({
-  regionData <- regionVotingData()
-  constituencies <- sort(unique(regionData$constituencyName))
+  constituencies <- constituenciesInRegion()
   selectInput(
     inputId = "constituencyChoice", label = "Select constituency:",
     choices = constituencies
   )
 })
-  
 uiOutput("constituencySelect")
 
 constituencyVotingData <- reactive({
@@ -236,30 +252,8 @@ Column
 
 ```{r}
 output$constituencyMap <- renderLeaflet({
-  req(input$regionChoice)
+  req(input$constituencyChoice)
 
-  #constituencyChoice <- input$constituencyChoice
-  
-  # simplifiedConstituencyShapefile@data <-  
-  #   simplifiedConstituencyShapefile@data %>%
-  #   mutate(polygonStroke = 
-  #       ifelse(constituencyName == constituencyChoice, TRUE, FALSE))
-  # 
-  # selectedData <- 
-  #   subset(simplifiedConstituencyShapefile, 
-  #     constituencyName == constituencyChoice)
-  # 
-  labels <- sprintf(
-    "<strong>%s</strong><br>First: %s<br>Second: %s (%s)<br>Third: %s",
-    simplifiedConstituencyShapefile$constituencyName,
-    simplifiedConstituencyShapefile$`1`, 
-    simplifiedConstituencyShapefile$`2`,
-    paste0(
-      round(-100 * simplifiedConstituencyShapefile$shortfallVotesPpnVoted, 0),
-      "%"),
-    simplifiedConstituencyShapefile$`3`
-  ) %>% lapply(htmltools::HTML)
-  
   leaflet(data = simplifiedConstituencyShapefile) %>% 
     addProviderTiles(providers$CartoDB.Positron) %>%
     # setView(
@@ -269,14 +263,13 @@ output$constituencyMap <- renderLeaflet({
       fillColor = ~leafletPalette(shortfallVotesPpnVoted), 
       fillOpacity = 0.6, 
       layerId = ~POLYGON_ID,
-      stroke = TRUE, color = "white", #~ifelse(polygonStroke, "black", "white"), 
-      dashArray = 3, #~ifelse(polygonStroke, "", "3"),
-      weight = 1, #~ifelse(polygonStroke, 7, 1), 
-      label = labels,
+      stroke = TRUE, color = "white", 
+      dashArray = 3, 
+      weight = 1, 
+      label = mapLabels,
       labelOptions = labelOptions(
         style = list("font-weight" = "normal", padding = "3px 5px"),
-        textsize = "10px",
-        direction = "auto")
+        textsize = "10px", direction = "auto")
     ) %>%
     addLegend(
       pal = leafletPalette, values = ~shortfallVotesPpnVoted, 
@@ -284,30 +277,22 @@ output$constituencyMap <- renderLeaflet({
       opacity = 0.7, title = "Shortfall", position = "bottomright")
 })
 # Click event for the map (will use to generate chart)
-click_constituency <- eventReactive(input$constituencyMap_shape_click, {
-    x <- input$constituencyMap_shape_click
-    x$id
-  })
+# click_constituency <- eventReactive(input$constituencyMap_shape_click, {
+#     x <- input$constituencyMap_shape_click
+#     x$id
+#   })
 observe({
-  req(click_constituency()) # do this if click_tract() is not null
+  req(input$constituencyChoice) # do this if click_tract() is not null
   # Add the clicked tract to the map in black, and remove when a new one is
   # clicked
-  map <- 
-    leafletProxy('constituencyMap') %>%
+  leafletProxy('constituencyMap') %>%
     removeShape('selectedConstituency') %>%
     addPolygons(
-      data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$POLYGON_ID == click_constituency(), ], 
-      fill = FALSE, color = "black", 
+      data = simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$POLYGON_ID == input$constituencyChoice, ], 
+      fill = FALSE, color = "black", weight = 5,
       opacity = 1, layerId = 'selectedConstituency')
   })
-constituency_data <- reactive({
-    # Fetch data for the clicked constituency
-  (simplifiedConstituencyShapefile[
-    simplifiedConstituencyShapefile$POLYGON_ID == click_constituency(), ]
-  )$constituencyName
-})
-# updateSelectInput(
-#   getDefaultReactiveDomain(), "constituencyChoice")
+
 leafletOutput("constituencyMap")
 ```
 
