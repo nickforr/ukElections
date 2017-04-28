@@ -63,7 +63,7 @@ if (!file.exists("votingData.RDS")) {
     mutate(
       votesPpnElectorate = Votes / Electorate,
       VotesPpnVoted = Votes / validVotes,
-      votesPpnLabel = sprintf("%.0f", VotesPpnVoted * 100),
+      votesPpnLabel = sprintf("%.0f%%", VotesPpnVoted * 100),
       winningVotes = max(Votes),
       shortfallVotes = winningVotes - Votes,
       shortfallVotesPpnElectorate = shortfallVotes / Electorate,
@@ -160,7 +160,10 @@ waffle2015 <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbr
 Sidebar {.sidebar}
 =======================================================================
 
-<br>
+Whether you have views on Scottish independence or on Brexit, the upcoming election suggests a greater relevance for tactical voting.  
+
+Use the [Explore constituency](#section-explore-constituency) tab to see more detail about your chosen constituency. The [Marginal constituencies in region](#section-marginal-constituencies-in-region) tab highlights the top marginal contituencies in the selected region.  And the [Overall position](#section-overall-position) tab considers the combined picture.
+
 ```{r}
 
 #Select input for region
@@ -201,11 +204,27 @@ constituencyVotingData <- reactive({
 })
 ```
 
-Whether you have views on Scottish independence or on Brexit, the upcoming election suggests a greater relevance for tactical voting.  
-
-Use the [Explore constituency](#section-explore-constituency) tab to see more detail about your chosen constituency.  
-
-The [Marginal constituencies in region](#section-marginal-constituencies-in-region) tab highlights the top marginal contituencies in the selected region.
+<hr>
+Polling suggests that there may be a *few* changes from the last election results, hence some simple'what if' analysis.  
+The slider below lets you explore what might happen were the Labour vote share to fall by the specified amount:
+```{r}
+sliderInput(
+  inputId = "laboutLeavers",
+  label = NULL,
+  min = 0, max = 75, value = 25, step = 5,
+  post = "%"
+)
+```
+I have assumed that half of those deserting Labour won't vote at all, whilst the other half are split evenly across Conservative and Liberal Democrat.  
+In addition, the checkkbox below allows you to look at what would happen if all UKIP voters defect with 80% voting Conservative and 20% voting Labour. 
+```{r}
+checkboxInput(
+  inputId = "ukipWipedOut", 
+  label = "UKIP wiped out?",
+  value = TRUE
+)
+```
+Clearly my assumptions are gross over-simplifications but the hope is that they might be interesting...
 
 Explore constituency
 =======================================================================
@@ -256,7 +275,7 @@ output$constituencyPlot <- renderPlot({
 plotOutput("constituencyPlot")
 ```
 
-### Another chart
+### 'What if' constituency results
 
 Something here
 
@@ -289,7 +308,7 @@ output$constituencyMap <- renderLeaflet({
     addLegend(
       pal = leafletPalette, values = ~shortfallVotesPpnVoted, 
       labFormat = labelFormat(suffix = "%", transform = function(x) 100 * x),
-      opacity = 0.7, title = "Shortfall", position = "bottomright")
+      opacity = 0.7, title = "Margin of <br>victory", position = "bottomright")
 })
 # Click event for the map (will use to generate chart)
 # click_constituency <- eventReactive(input$constituencyMap_shape_click, {
@@ -351,16 +370,29 @@ output$marginalFacet <- renderPlot({
 plotOutput("marginalFacet")
 ```
 
-Overall position
+Overall position {data-orientation=rows}
 =======================================================================
 
-### Simple comparison
+Row
+-----------------------------------------------------------------------
+### 2015 results
 
 ```{r}
-waffle::iron(waffle2015, waffle2015)
+print(waffle2015)
 ```
 
+### 2015 results
 
+Row
+----------------------------------------------------------------------
+
+### What if
+
+```{r}
+print(waffle2015)
+```
+
+### What id
 
 About
 =======================================================================
