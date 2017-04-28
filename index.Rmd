@@ -95,7 +95,7 @@ allPartyNames <-
   unique(filter(votingData, resultRank == 1)$partyAbbreviation)
  
 partyPalette <- 
-  magma(length(allPartyNames)) %>%
+  viridis(length(allPartyNames), direction = -1) %>%
   set_names(allPartyNames)
 
 partySelection <- 
@@ -103,7 +103,6 @@ partySelection <-
 selectionPalette <- 
   c("#0087dc", "#d50000", "#B3009D", "#FFF95D", "#FDBB30", "#8dc63f", 
     "#3F8428", "#d18975")
-
 partyPalette[partySelection] <- selectionPalette
     
 mapVotingData <- 
@@ -154,7 +153,8 @@ waffleData2015 <-
   summarise(a = n()) %>%
   arrange(desc(a))
 
-z <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbreviation), colors = partyPalette, rows = 20)
+waffle2015 <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbreviation), colors = partyPalette, rows = 15, 
+  equal = FALSE, size = 1) + theme(legend.text = element_text(size = 12))
 ```
 
 Sidebar {.sidebar}
@@ -350,6 +350,16 @@ output$marginalFacet <- renderPlot({
 })
 plotOutput("marginalFacet")
 ```
+
+Overall position
+=======================================================================
+
+### Simple comparison
+
+```{r}
+waffle::iron(waffle2015, waffle2015)
+```
+
 
 
 About
