@@ -146,15 +146,17 @@ leafletPalette <-
       reverse = TRUE
     )
 
-waffleData2015 <- 
+summaryData2015 <- 
   votingData %>%
   filter(resultRank == 1) %>%
   group_by(partyAbbreviation) %>%
-  summarise(a = n()) %>%
-  arrange(desc(a))
+  summarise(`2015 results` = n()) %>%
+  arrange(desc(`2015 results`)) %>%
+  rename(`Party` = partyAbbreviation)
+  
 
-waffle2015 <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbreviation), colors = partyPalette, rows = 14, 
-  equal = TRUE, size = 1, legend_pos = "bottom") 
+# waffle2015 <- waffle::waffle(setNames(waffleData2015$a, waffleData2015$partyAbbreviation), colors = partyPalette, rows = 10, 
+#   equal = TRUE, size = 1, legend_pos = "bottom", flip = FALSE) 
 ```
 
 Sidebar {.sidebar}
@@ -378,7 +380,9 @@ Column
 ### 2015 results
 
 ```{r}
-iron(waffle2015, waffle2015)
+# iron(
+#   waffle2015 + labs(subtitle = '2015 results'), 
+#   waffle2015 + guides(fill = 'none') + labs(caption = 'What-if outcome'))
 ```
 
 
@@ -388,7 +392,7 @@ Column
 ### What if
 
 ```{r}
-knitr::kable(waffleData2015)
+knitr::kable(summaryData2015)
 ```
 
 
