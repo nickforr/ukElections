@@ -176,6 +176,7 @@ selectInput(
 
 #Filter data based on region data
 regionVotingData <- reactive({
+  req(input$regionChoice)
   if (input$regionChoice == "All") {
     votingData
   } else {
@@ -291,7 +292,8 @@ output$constituencyMap <- renderLeaflet({
   #req(input$regionChoice)
 
   leaflet(data = simplifiedConstituencyShapefile) %>% 
-    addProviderTiles(providers$CartoDB.Positron) %>%
+    addTiles() %>%
+    #addProviderTiles() %>%
     # setView(
     #   mean(selectedData@bbox[1, ]), mean(selectedData@bbox[2, ]), 
     #   7) %>%
@@ -313,12 +315,30 @@ output$constituencyMap <- renderLeaflet({
       opacity = 0.7, title = "Margin of <br>victory", position = "bottomright")
 })
 # Click event for the map (will use to generate chart)
-# click_constituency <- eventReactive(input$constituencyMap_shape_click, {
-#     x <- input$constituencyMap_shape_click
-#     x$id
-#   })
+click_constituency <- eventReactive(input$constituencyMap_shape_click, {
+    x <- input$constituencyMap_shape_click
+    x$id
+  })
 observe({
-  req(input$constituencyChoice) # do this if click_tract() is not null
+  req(click_constituency())
+  selectedConstituency <- 
+    simplifiedConstituencyShapefile[simplifiedConstituencyShapefile$POLYGON_ID == click_constituency(), ]$constituencyName
+  selectedRegion <- 
+    filter(votingData, constituencyName == selectedConstituency)$Region
+  updateSelectInput(
+    session = getDefaultReactiveDomain(),
+    inputId = 'regionChoice',
+    selected = selectedRegion
+  )
+  updateSelectInput(
+    session = getDefaultReactiveDomain(),
+    inputId = 'constituencyChoice',
+    choices = constituenciesInRegion(),
+    selected = selectedConstituency
+  )
+})
+observe({
+  req(input$constituencyChoice) 
   # Add the clicked tract to the map in black, and remove when a new one is
   # clicked
   leafletProxy('constituencyMap') %>%
